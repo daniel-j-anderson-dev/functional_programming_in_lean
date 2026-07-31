@@ -81,3 +81,111 @@ def div!
   [Div α] [BEq α] [Zero α]
   : α → α → Except DivideByZero α :=
   divM (.error ⟨⟩)
+
+namespace nondeterministic_search
+
+inductive LazyList (α : Type u) where
+  | nil
+  | cons (current : α) (next : Unit → LazyList α)
+
+namespace LazyList
+
+def singleton (x : α) : LazyList α := .cons x λ () => .nil
+
+def union
+  (lhs rhs : LazyList α)
+  : LazyList α :=
+  match lhs with
+  | .nil => rhs
+  | .cons lhsElement getNextLhsElement =>
+    .cons lhsElement λ _ => union (getNextLhsElement ()) rhs
+
+def fromList
+  (xs : List α)
+  : LazyList α :=
+  match xs with
+  | [] => .nil
+  | head :: tail => .cons head λ _ => fromList tail
+
+def take
+  (n : Nat)
+  (self : LazyList α)
+  : List α :=
+  match n, self with
+  | 0 , _ | _ + 1, .nil => []
+  | nPred + 1, .cons current next => current :: (next ()).take nPred
+
+def takeAll
+  (self : LazyList α)
+  : List α :=
+  match self with
+  | .nil => []
+  | .cons current next => current :: (next ()).takeAll
+
+def flatMap
+  (self : LazyList α)
+  (f : α → LazyList β)
+  : LazyList β :=
+  match self with
+  | .nil => .nil
+  | .cons current next => (f current).union (flatMap (next ()) f)
+
+instance
+  : Monad LazyList where
+  pure := singleton
+  bind := flatMap
+
+end LazyList
+
+def addsTo
+  [BEq  α] [LT α] [DecidableLT α] [Zero α] [Sub α]
+  (goal : α) (xs : List α)
+  : LazyList (List α) :=
+  match xs with
+  | [] => if goal == 0 then pure [] else .nil
+  | head :: tail =>
+    let withoutHead := addsTo goal tail
+    if head > goal then
+      withoutHead
+    else
+      let withHead := do
+        let sub ← addsTo (goal - head) tail
+        pure (head :: sub)
+      withoutHead.union withHead
+
+#eval
+  let solutions := (addsTo 15 [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]).takeAll
+  for solution in solutions do
+    IO.println solution
+
+inductive DivOrChoose where
+  | div
+  | choose
+
+def DivOrChoose.toFunction
+  [Div α] [BEq α] [Zero α]
+  (divOrChoose : DivOrChoose)
+  (lhs rhs : α)
+  : LazyList α :=
+  match divOrChoose with
+  | .div => divM .nil lhs rhs
+  | .choose => .fromList [lhs, rhs]
+
+def foo :=  (
+    Expression.evaluateM
+      (BinaryOperator.toFunction DivOrChoose.toFunction)
+      (
+        .binaryOperator
+          .add
+          (.literal 1)
+          (
+            .binaryOperator
+              (.other .choose)
+              (.literal 2)
+              (.literal 5)
+          )
+      )
+  )
+
+
+end nondeterministic_search
