@@ -1,5 +1,9 @@
 module
 
+import Std.Data.HashMap
+
+open Std (HashMap)
+
 inductive BinaryOperator Other where
   | add
   | sub
@@ -216,3 +220,73 @@ end DivOrChoose
   ))).takeAll
 
 end nondeterministic_search
+
+namespace reader_monad
+
+def Reader (ρ : Type u) (α : Type v) : Type (max u v) := ρ → α
+
+namespace Reader
+
+def read : Reader ρ ρ := id
+
+def pure
+  (x : α)
+  : Reader ρ α :=
+  λ _ => x
+
+def bind
+  (current : Reader ρ α) (next : α → Reader ρ β)
+  : Reader ρ β :=
+  λ environment => next (current environment) environment
+
+instance
+  : Monad (Reader ρ) where
+  pure := pure
+  bind := bind
+
+instance
+  : LawfulMonad (Reader ρ) := .mk'
+  (id_map := by intros; rfl)
+  (pure_bind := by intros; rfl)
+  (bind_assoc := by intros; rfl)
+
+abbrev Environment α := HashMap String (α → α → α)
+
+namespace Environment
+
+def getFunction
+  [Zero α]
+  (binOpName : String) (lhs rhs : α)
+  : Reader (Environment α) α := do
+  let environment ← Reader.read
+  let binOp := environment.getD binOpName (fallback := λ _ _ => 0)
+  pure (binOp lhs rhs)
+
+end Environment
+
+def exampleEnvironment
+  [Max α] [Mod α]
+  : Environment α :=
+  .ofList [("max", Max.max), ("mod", Mod.mod)]
+
+#eval
+  Expression.evaluateM
+    (BinaryOperator.toFunction Environment.getFunction)
+    (.binaryOperator
+      (.other "max")
+      (.binaryOperator
+        .add
+        (.literal 5)
+        (.literal 4)
+      )
+      (.binaryOperator
+        .mul
+        (.literal 3)
+        (.literal 2)
+      )
+    )
+    exampleEnvironment
+
+end Reader
+
+end reader_monad
