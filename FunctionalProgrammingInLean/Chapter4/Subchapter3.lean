@@ -162,30 +162,57 @@ inductive DivOrChoose where
   | div
   | choose
 
-def DivOrChoose.toFunction
+namespace DivOrChoose
+
+def toFunction
   [Div α] [BEq α] [Zero α]
-  (divOrChoose : DivOrChoose)
+  (self : DivOrChoose)
   (lhs rhs : α)
   : LazyList α :=
-  match divOrChoose with
+  match self with
   | .div => divM .nil lhs rhs
   | .choose => .fromList [lhs, rhs]
 
-def foo :=  (
-    Expression.evaluateM
-      (BinaryOperator.toFunction DivOrChoose.toFunction)
-      (
-        .binaryOperator
-          .add
-          (.literal 1)
-          (
-            .binaryOperator
-              (.other .choose)
-              (.literal 2)
-              (.literal 5)
-          )
-      )
-  )
+end DivOrChoose
 
+#eval
+  (Expression.evaluateM
+    (BinaryOperator.toFunction DivOrChoose.toFunction)
+    (.binaryOperator
+      .add
+      (.literal 1)
+      (.binaryOperator
+        (.other .choose)
+        (.literal 2)
+        (.literal 5)
+  ))).takeAll
+
+#eval
+  (Expression.evaluateM
+    (BinaryOperator.toFunction DivOrChoose.toFunction)
+    (.binaryOperator
+      .add
+      (.literal 1)
+      (.binaryOperator
+       (.other .div)
+       (.literal 2)
+       (.literal 0)
+  ))).takeAll
+
+#eval
+  (Expression.evaluateM
+    (BinaryOperator.toFunction DivOrChoose.toFunction)
+    (.binaryOperator
+      (.other .div)
+      (.literal 90)
+      (.binaryOperator
+        .add
+        (.binaryOperator
+          (.other .choose)
+          (.literal (-5))
+          (.literal 5)
+        )
+        (.literal 5)
+  ))).takeAll
 
 end nondeterministic_search
