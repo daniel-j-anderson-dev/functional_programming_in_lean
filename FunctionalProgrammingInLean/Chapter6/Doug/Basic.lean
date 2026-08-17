@@ -44,16 +44,6 @@ def inDirectory
 
 end Configuration
 
-def usage
-  : String :=
-  "Usage: doug [--ascii]
-Options:
-\t--ascii\tUse ASCII characters to display the directory structure"
-
-abbrev ExitCode := UInt32
-abbrev ExitCode.success : ExitCode := 0
-abbrev ExitCode.failure : ExitCode := 1
-
 inductive Entry where
   | file (name : String)
   | directory (name : String)
@@ -80,6 +70,7 @@ def showDirName
   : IO Unit :=
   IO.println (configuration.directoryName path)
 
+-- see `List.forA`
 def doList
   [Applicative f]
   (xs : List α) (action : (α → f Unit))
@@ -89,8 +80,12 @@ def doList
   | head :: tail =>
     action head *>
     doList tail action
+#check (@List.forA)
 
-abbrev dirLT (lhs rhs : IO.FS.DirEntry) : Bool := lhs.fileName < rhs.fileName
+def dirLT
+  (lhs rhs : IO.FS.DirEntry)
+  : Bool :=
+  lhs.fileName < rhs.fileName
 
 partial def dirTree
   (configuration : Configuration) (path : System.FilePath)
@@ -101,8 +96,21 @@ partial def dirTree
   | some (.directory name) =>
     showDirName configuration name
     let contents ← path.readDir
-    let newConfiguration := Configuration.inDirectory configuration
-    doList (contents.qsort dirLT).toList λ dirEntry => dirTree newConfiguration dirEntry.path
+    let contents := contents.qsort dirLT
+    let newConfiguration := configuration.inDirectory
+    for entry in contents do
+      dirTree newConfiguration entry.path
+    -- doList (contents.qsort dirLt).toList λ entry => dirTree newConfiguration entry.path
+
+def usage
+  : String :=
+  "Usage: doug [--ascii]
+Options:
+\t--ascii\tUse ASCII characters to display the directory structure"
+
+abbrev ExitCode := UInt32
+abbrev ExitCode.success : ExitCode := 0
+abbrev ExitCode.failure : ExitCode := 1
 
 def doug
   (args : List String)
@@ -118,4 +126,4 @@ def doug
     IO.eprintln errorMessage
     pure ExitCode.failure
 
-#eval doug []
+#eval doug ["--ascii"]
