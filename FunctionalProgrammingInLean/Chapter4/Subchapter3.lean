@@ -290,3 +290,78 @@ def exampleEnvironment
 end Reader
 
 end reader_monad
+
+namespace «4.3.3.4.1. Checking Contracts»
+
+instance
+  : LawfulMonad (Except ε) := .mk'
+  (pure_bind := by
+    intros;
+    rfl
+  )
+  (id_map := by
+    intro _ x;
+    cases x <;> rfl
+  )
+  (bind_assoc := by
+    intro _ _ _ x _ _;
+    cases x <;> rfl
+  )
+
+def State
+  (σ : Type u ) (α : Type v)
+  : Type (max u v) :=
+  σ → (σ × α)
+
+namespace State
+
+def pure
+  (x : α)
+  : State σ α :=
+  λ s => (s, x)
+
+def get
+  : State σ σ :=
+  λ s => (s, s)
+
+def set
+  (s : σ)
+  : State σ Unit :=
+  λ _ => (s, ())
+
+def bind
+  (current : State σ α) (next : α → State σ β)
+  : State σ β :=
+  λ s =>
+    let (currentState, currentValue) := current s
+    next currentValue currentState
+
+instance
+  : Monad (State σ) where
+  pure := pure
+  bind := bind
+
+end State
+
+instance
+  : LawfulMonad (State σ) := .mk'
+  (pure_bind := by
+    intros
+    rfl
+  )
+  (id_map := by
+    intro _ x
+    funext s
+    rfl
+  )
+  (bind_assoc := by
+    intro _ _ _ x _ _
+    funext s
+    rfl
+  )
+
+end «4.3.3.4.1. Checking Contracts»
+
+namespace «4.3.3.4.2. Readers with Failure»
+
+end «4.3.3.4.2. Readers with Failure»
