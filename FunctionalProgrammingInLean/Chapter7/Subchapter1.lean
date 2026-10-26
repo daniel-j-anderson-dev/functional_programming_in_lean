@@ -125,16 +125,24 @@ theorem Nat.comm_assoc
 
   let step₀ : (a + c) + b = a + (c + b) := Nat.add_assoc a c b
   let step₁ : a + (c + b) = (a + c) + b := Eq.symm step₀
-
   let step₂ : b + c = c + b             := Nat.add_comm b c
   let step₃ : a + (b + c) = a + (c + b) := congrArg (a + ·) step₂
-
   let step₄ : a + (b + c) = (a + c) + b := Eq.trans step₃ step₁
 
   (step₄ : Goal)
 
-def congruenceLength
-  {α : Sort u} {n m : Nat}
+theorem Nat.eq_zero_add
+  (n : Nat)
+  : n = 0 + n :=
+  let Goal := n = 0 + n
+
+  let step₀ : 0 + n = n := Nat.zero_add n
+  let step₁ : n = 0 + n := Eq.symm step₀
+
+  (step₁ : Goal)
+
+def castLength
+  {α : Type u} {n m : Nat}
   (h : n = m) (self : Vect α n)
   : Vect α m :=
   let Goal := Vect α m
@@ -145,30 +153,21 @@ def congruenceLength
 
   (step₂ : Goal)
 
-theorem Nat.zero_add_symm
-  (n : Nat)
-  : n = 0 + n :=
-  let Goal := n = 0 + n
-
-  let step₀ : 0 + n = n := Nat.zero_add n
-  let step₁ : n = 0 + n := Eq.symm step₀
-
-  (step₁ : Goal)
-
 def reverse
-  {α : Sort u} {n : Nat}
+  {α : Type u} {n : Nat}
   (self : Vect α n)
   : Vect α n :=
   loop .nil self
   where loop
-    {α : Sort u} {n m : Nat}
-    (accumulator : Vect α m) (v : Vect α n)
+    {α : Type u} {n m : Nat}
+    (accumulator : Vect α m) (remaining : Vect α n)
     : Vect α (n + m) :=
-    match n, v with
-    | 0, .nil => congruenceLength (Nat.zero_add_symm m) accumulator
-    | n' + 1, .cons head tail =>
-      let output := loop (cons head accumulator) tail
-      congruenceLength (Nat.comm_assoc n' m 1) output
+    match n, remaining with
+    | 0, .nil => castLength (Nat.eq_zero_add m) accumulator
+    | k + 1, .cons head tail =>
+      let newAccumulator := cons head accumulator
+      let recursiveResult := loop newAccumulator tail
+      castLength (Nat.comm_assoc k m 1) recursiveResult
 
 def drop
   {α : Sort u} {k : Nat}
